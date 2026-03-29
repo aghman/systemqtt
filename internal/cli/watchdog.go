@@ -15,8 +15,8 @@ func notifyReady() {
 }
 
 func startWatchdogIfEnabled(ctx context.Context, log *zap.Logger) {
-	interval, ok := daemon.SdWatchdogEnabled(false)
-	if !ok || interval <= 0 {
+	interval, err := daemon.SdWatchdogEnabled(false)
+	if err != nil || interval <= 0 {
 		return
 	}
 	t := time.NewTicker(interval / 3)
