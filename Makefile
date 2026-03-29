@@ -5,7 +5,7 @@ BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -ldflags "-X github.com/systemqtt/systemqtt/internal/version.Version=$(VERSION) -X github.com/systemqtt/systemqtt/internal/version.GitCommit=$(GIT_COMMIT) -X github.com/systemqtt/systemqtt/internal/version.BuildDate=$(BUILD_DATE)"
 
 .PHONY: build test lint clean
-build:
+build: clean
 	@mkdir -p bin
 	go build $(LDFLAGS) -o bin/systemqtt ./cmd/systemqtt
 
