@@ -78,7 +78,7 @@ If not set, all units are published.
 |---|---|---|---|
 | `agent` | Format CLI output as JSON for AI agent consumption | `false` | No |
 | `config.file` | Path to the configuration file | `""` | No |
-| `mqtt.broker.url` | URL of the MQTT broker | — | Yes |
+| `mqtt.broker.url` | Broker URL with scheme and host (e.g. `tcp://mqtt.example.com`); not a bare hostname. Port optional; if omitted, `mqtt.broker.port` is used | — | Yes |
 | `mqtt.broker.port` | Port of the MQTT broker | `1883` | No |
 | `mqtt.broker.username` | Username for MQTT broker authentication (omit for anonymous brokers) | `""` | No |
 | `mqtt.broker.password` | Password for MQTT broker authentication (omit for anonymous brokers) | `""` | No |

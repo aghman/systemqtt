@@ -13,7 +13,7 @@ func RegisterPersistentFlags(fs *pflag.FlagSet) {
 // The root command registers --agent separately; do not duplicate it here.
 func RegisterFlags(fs *pflag.FlagSet) {
 	fs.String("config", "", "Path to configuration file (YAML or JSON)")
-	fs.String("mqtt.broker.url", "", "MQTT broker URL (required)")
+	fs.String("mqtt.broker.url", "", "MQTT broker URL: include scheme and host (not a bare hostname); port optional, defaults to mqtt.broker.port. Example: tcp://mqtt.example.com")
 	fs.Int("mqtt.broker.port", 1883, "MQTT broker port")
 	fs.String("mqtt.broker.username", "", "MQTT username (omit for anonymous brokers)")
 	fs.String("mqtt.broker.password", "", "MQTT password (omit for anonymous brokers)")
