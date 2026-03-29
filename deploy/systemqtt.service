@@ -1,0 +1,24 @@
+[Unit]
+Description=Publish systemd unit status to MQTT (systemqtt)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+WatchdogSec=30
+NotifyAccess=main
+ExecStart=/usr/local/bin/systemqtt serve
+Restart=on-failure
+RestartSec=5
+User=systemqtt
+Group=systemqtt
+AmbientCapabilities=
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/etc/systemqtt
+SupplementaryGroups=systemd-journal
+
+[Install]
+WantedBy=multi-user.target
