@@ -69,7 +69,7 @@ If not set, all units are published.
 - The configuration file location can be passed as a command line parameter or via environment variable.
 - All configuration options are available as environment variables, configuration file options, and command line parameters.
 - All configuration options are validated at startup; the service exits with a clear error if the configuration is invalid.
-- All configuration options have a default value where a sensible default exists; options without a sensible default (broker URL, credentials) are required and validated for presence.
+- All configuration options have a default value where a sensible default exists; options without a sensible default (broker URL) are required and validated for presence. MQTT username and password default to empty for brokers that allow anonymous connections.
 - All configuration options have a description.
 
 ### Configuration Options
@@ -80,8 +80,8 @@ If not set, all units are published.
 | `config.file` | Path to the configuration file | `""` | No |
 | `mqtt.broker.url` | URL of the MQTT broker | — | Yes |
 | `mqtt.broker.port` | Port of the MQTT broker | `1883` | No |
-| `mqtt.broker.username` | Username for MQTT broker authentication | — | Yes |
-| `mqtt.broker.password` | Password for MQTT broker authentication | — | Yes |
+| `mqtt.broker.username` | Username for MQTT broker authentication (omit for anonymous brokers) | `""` | No |
+| `mqtt.broker.password` | Password for MQTT broker authentication (omit for anonymous brokers) | `""` | No |
 | `mqtt.client.id` | MQTT client ID | `systemqtt-<hostname>` | No |
 | `mqtt.qos` | MQTT QoS level (0, 1, 2) | `1` | No |
 | `mqtt.retain` | Retain MQTT messages | `true` | No |
