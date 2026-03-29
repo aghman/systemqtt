@@ -6,6 +6,7 @@ name: Go
 on:
   push:
     branches: [ "main" ]
+    tags: [ "v*" ]
   pull_request:
     branches: [ "main" ]
 
@@ -13,6 +14,8 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    outputs:
+      safe_version: ${{ steps.package.outputs.safe_version }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -53,3 +56,23 @@ jobs:
         name: systemqtt-linux-amd64-${{ steps.package.outputs.safe_version }}
         path: dist/systemqtt-linux-amd64-*.zip
         if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    permissions:
+      contents: write
+    steps:
+    - name: Download release artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: systemqtt-linux-amd64-${{ needs.build.outputs.safe_version }}
+        path: dist
+
+    - name: Publish GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: dist/*.zip
+        generate_release_notes: true
+        fail_on_unmatched_files: true
