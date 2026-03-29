@@ -9,48 +9,129 @@ It will be a simple service that will listen for systemd unit status changes and
 
 ### Architecture
 
-The service will be a simple go service that will listen for systemd unit status changes and publish them to MQTT.
+The service has three core components:
+
+1. **Systemd Watcher** — Subscribes to `org.freedesktop.systemd1` property changes over D-Bus using `github.com/godbus/dbus/v5`. Event-driven; no polling. On startup, performs an initial scan to publish current state of all matching units so subscribers get a full picture immediately.
+
+2. **MQTT Publisher** — Maintains a persistent connection to the MQTT broker using `eclipse/paho.mqtt.golang`. Publishes unit state changes as retained JSON messages at QoS 1. Registers a Last Will and Testament (LWT) so the broker publishes an offline status if the service disconnects unexpectedly. Auto-reconnects with exponential backoff on connection loss; publishes a full state refresh on reconnect.
+
+3. **Config / CLI Layer** — Cobra commands backed by Viper for unified config from CLI flags, environment variables, and config files. Zap for structured logging.
+
+### MQTT Topic Structure
+
+```
+<prefix>/<hostname>/unit/<unit-name>/state      — full JSON state payload
+<prefix>/<hostname>/status                      — "online" / LWT "offline"
+```
+
+- `<prefix>` defaults to `systemqtt`, configurable via `mqtt.topic.prefix`.
+- `<hostname>` defaults to `os.Hostname()`, configurable via `hostname`.
+- `<unit-name>` is the full systemd unit name (e.g. `nginx.service`).
+
+### MQTT Message Payload
+
+Unit state messages are JSON:
+
+```json
+{
+  "unit": "nginx.service",
+  "active_state": "active",
+  "sub_state": "running",
+  "timestamp": "2026-03-29T12:00:00Z",
+  "hostname": "web-01"
+}
+```
+
+The `<prefix>/<hostname>/status` topic carries a simple string: `"online"` on connect, `"offline"` via LWT.
+
+### Systemd Unit Filtering
+
+The `systemd.unit.filter` option accepts a comma-separated list of glob patterns matched against unit names. Examples:
+
+- `nginx.service` — exact match
+- `*.service` — all service units
+- `myapp-*` — prefix match
+
+If not set, all units are published.
 
 ### Implementation
 
-The service will be a simple go service that will listen for systemd unit status changes and publish them to MQTT.
-
-- Uses spf13/cobra for command line parsing
-- Uses viper for configuration
-- Uses zap for logging
-- Uses Makefles for building
-
+- Uses `github.com/godbus/dbus/v5` for D-Bus subscription
+- Uses `eclipse/paho.mqtt.golang` for MQTT
+- Uses `spf13/cobra` for command line parsing
+- Uses `spf13/viper` for configuration
+- Uses `uber-go/zap` for logging
+- Uses Makefiles for building
 
 ### Configuration
-- The service can be configured via a configuration file, that can be either in JSON or YAML format.  
-- The configuration file location can be passed in as a command line parameter or via environment variables.
-- All configuration options must be available as evironment variables, configuration file options, and command line parameters.
-- All configuration options must be validated and error out if the configuration is invalid.
-- All configuration options must have a default value.
-- All configuration options must have a description.
+
+- The service can be configured via a configuration file in JSON or YAML format. Viper auto-detects format from the file extension.
+- The configuration file location can be passed as a command line parameter or via environment variable.
+- All configuration options are available as environment variables, configuration file options, and command line parameters.
+- All configuration options are validated at startup; the service exits with a clear error if the configuration is invalid.
+- All configuration options have a default value where a sensible default exists; options without a sensible default (broker URL, credentials) are required and validated for presence.
+- All configuration options have a description.
 
 ### Configuration Options
-- agent - format CLI output for AI agents, which equates to outputting everything in JSON format
-- config.file - The location of the configuration file.
-- config.format - The format of the configuration file.  Must be one of: json, yaml.
-- mqtt.broker.url - The URL of the MQTT broker.
-- mqtt.broker.port - The port of the MQTT broker.
-- mqtt.broker.username - The username for the MQTT broker.
-- mqtt.broker.password - The password for the MQTT broker.
-- mqtt.client.id - The client ID for the MQTT broker.
-- systemd.unit.filter - A comma separated list of systemd unit names to filter.  If not set, all units will be published.
-- verbose - The verbosity of the output.  Must be one of: debug, info, warning, error, fatal.
+
+| Option | Description | Default | Required |
+|---|---|---|---|
+| `agent` | Format CLI output as JSON for AI agent consumption | `false` | No |
+| `config.file` | Path to the configuration file | `""` | No |
+| `mqtt.broker.url` | URL of the MQTT broker | — | Yes |
+| `mqtt.broker.port` | Port of the MQTT broker | `1883` | No |
+| `mqtt.broker.username` | Username for MQTT broker authentication | — | Yes |
+| `mqtt.broker.password` | Password for MQTT broker authentication | — | Yes |
+| `mqtt.client.id` | MQTT client ID | `systemqtt-<hostname>` | No |
+| `mqtt.qos` | MQTT QoS level (0, 1, 2) | `1` | No |
+| `mqtt.retain` | Retain MQTT messages | `true` | No |
+| `mqtt.tls.enabled` | Enable TLS for MQTT connection | `false` | No |
+| `mqtt.tls.ca` | Path to CA certificate | `""` | No |
+| `mqtt.tls.cert` | Path to client certificate | `""` | No |
+| `mqtt.tls.key` | Path to client key | `""` | No |
+| `mqtt.tls.insecure` | Skip TLS certificate verification | `false` | No |
+| `mqtt.topic.prefix` | Base prefix for MQTT topics | `systemqtt` | No |
+| `hostname` | Hostname used in MQTT topics | OS hostname | No |
+| `log.level` | Log level: debug, info, warn, error, fatal | `info` | No |
+| `systemd.unit.filter` | Comma-separated glob patterns for unit names to publish | `""` (all units) | No |
+| `systemd.publish.on_startup` | Publish current state of all matching units on startup | `true` | No |
 
 ### Commands
-- config - Base command for handling configuration. Prints the current known configuration options and their values.
-- config.template - Outputs a template configuration file with all configuration options and their default values.
-- config.validate - Validates the configuration file, prints success or failure, and identifies any invalid options.
-- doctor - Runs validation of configuration (from all known sources), prints success or failure, and identifies any invalid options.  Also attempts to validate connection to the MQTT broker.
-- doctor.fix - Attempts to fix any invalid options in the configuration file.
-- serve - Starts the service and listens for systemd unit status changes.
-- version - Prints the version of the service.
 
+- `config` — Prints the current resolved configuration (all sources merged) and their values.
+- `config template` — Outputs a template configuration file with all options and their default values.
+- `config validate` — Validates the configuration, prints success or failure, and identifies any invalid or missing required options.
+- `doctor` — Validates configuration from all sources, attempts to connect to the MQTT broker, and verifies D-Bus access to systemd. Prints a summary of pass/fail checks.
+- `serve` — Starts the service: connects to MQTT, subscribes to D-Bus, publishes unit state changes.
+- `version` — Prints the version of the service.
 
-## Runtime considerations
-- The service will run as a systemd unit.
-- The service should be run as a user that has access to the systemd unit status.
+### Agent Mode
+
+When `--agent` is passed, all command output is structured JSON with a consistent envelope:
+
+```json
+{
+  "status": "ok",
+  "data": { ... },
+  "error": null
+}
+```
+
+On failure:
+
+```json
+{
+  "status": "error",
+  "data": null,
+  "error": "mqtt broker connection refused"
+}
+```
+
+For the `serve` command, agent mode switches zap to JSON-encoded structured logging.
+
+## Runtime Considerations
+
+- The service runs as a systemd unit. A `.service` file will be provided.
+- The service should be run as a user that has access to D-Bus and systemd unit status.
+- Graceful shutdown on `SIGTERM` and `SIGINT`: explicitly publishes the offline status to the LWT topic, unsubscribes from D-Bus, disconnects from MQTT, and exits with code 0.
+- Supports systemd `WatchdogSec=` — periodically notifies systemd the process is alive.
