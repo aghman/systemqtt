@@ -15,7 +15,7 @@ make test
 - **Environment**: `SYSTEMQTT_*` with nested keys as underscores (for example `SYSTEMQTT_MQTT_BROKER_URL`).
 - **Flags**: same keys as the [design sketch](design/sketch.md) (for example `--mqtt.broker.url`).
 
-Required: `mqtt.broker.url`, `mqtt.broker.username`, `mqtt.broker.password`.
+Required: `mqtt.broker.url`. Username and password are optional for brokers that allow anonymous connections.
 
 ```bash
 systemqtt config template

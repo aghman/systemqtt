@@ -65,12 +65,6 @@ func (c *Config) Validate() error {
 	if c.MQTT.Broker.Port < 1 || c.MQTT.Broker.Port > 65535 {
 		errs = append(errs, fmt.Errorf("mqtt.broker.port must be between 1 and 65535, got %d", c.MQTT.Broker.Port))
 	}
-	if strings.TrimSpace(c.MQTT.Broker.Username) == "" {
-		errs = append(errs, errors.New("mqtt.broker.username is required"))
-	}
-	if c.MQTT.Broker.Password == "" {
-		errs = append(errs, errors.New("mqtt.broker.password is required"))
-	}
 	if c.MQTT.QoS < 0 || c.MQTT.QoS > 2 {
 		errs = append(errs, fmt.Errorf("mqtt.qos must be 0, 1, or 2, got %d", c.MQTT.QoS))
 	}

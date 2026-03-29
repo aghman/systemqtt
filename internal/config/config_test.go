@@ -8,21 +8,20 @@ import (
 	"github.com/spf13/pflag"
 )
 
-func TestValidate_requiredMQTT(t *testing.T) {
+func TestValidate_requiredBrokerURL(t *testing.T) {
 	c := minimalValidConfig()
 	c.MQTT.Broker.URL = ""
 	if err := c.Validate(); err == nil {
 		t.Fatal("expected error for empty broker URL")
 	}
-	c = minimalValidConfig()
+}
+
+func TestValidate_anonymousMQTTCredentials(t *testing.T) {
+	c := minimalValidConfig()
 	c.MQTT.Broker.Username = ""
-	if err := c.Validate(); err == nil {
-		t.Fatal("expected error for empty username")
-	}
-	c = minimalValidConfig()
 	c.MQTT.Broker.Password = ""
-	if err := c.Validate(); err == nil {
-		t.Fatal("expected error for empty password")
+	if err := c.Validate(); err != nil {
+		t.Fatalf("expected valid config with empty broker credentials: %v", err)
 	}
 }
 
@@ -108,8 +107,6 @@ func minimalValidConfig() *Config {
 	c := &Config{}
 	c.MQTT.Broker.URL = "tcp://localhost"
 	c.MQTT.Broker.Port = 1883
-	c.MQTT.Broker.Username = "u"
-	c.MQTT.Broker.Password = "p"
 	c.MQTT.QoS = 1
 	c.Log.Level = "info"
 	return c
