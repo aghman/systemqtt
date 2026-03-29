@@ -15,14 +15,41 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v5
       with:
-        go-version: '1.20'
-
-    - name: Build
-      run: go build -v ./...
+        go-version-file: go.mod
+        cache: true
 
     - name: Test
       run: go test -v ./...
+
+    - name: Build and package
+      id: package
+      run: |
+        set -euo pipefail
+        mkdir -p bin dist
+        GIT_COMMIT="$(git rev-parse --short HEAD)"
+        BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        if VERSION="$(git describe --tags --exact-match 2>/dev/null)"; then
+          :
+        else
+          VERSION="0.0.0-dev+${GIT_COMMIT}"
+        fi
+        SAFE_VERSION="$(echo "${VERSION}" | sed 's/[\/:]/-/g')"
+        echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+        echo "safe_version=${SAFE_VERSION}" >> "${GITHUB_OUTPUT}"
+        go build -v \
+          -ldflags "-X github.com/systemqtt/systemqtt/internal/version.Version=${VERSION} -X github.com/systemqtt/systemqtt/internal/version.GitCommit=${GIT_COMMIT} -X github.com/systemqtt/systemqtt/internal/version.BuildDate=${BUILD_DATE}" \
+          -o bin/systemqtt ./cmd/systemqtt
+        zip -j "dist/systemqtt-linux-amd64-${SAFE_VERSION}.zip" bin/systemqtt
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: systemqtt-linux-amd64-${{ steps.package.outputs.safe_version }}
+        path: dist/systemqtt-linux-amd64-*.zip
+        if-no-files-found: error
