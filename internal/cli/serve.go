@@ -2,8 +2,12 @@ package cli
 
 import (
 	"context"
+	"net"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -60,8 +64,11 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	if err := pub.Connect(ctx); err != nil {
 		return err
 	}
+	log.Info("connected to MQTT broker; online and publishing unit state",
+		serveBrokerEndpoint(cfg))
 
 	if cfg.Systemd.Publish.OnStartup {
+		log.Info("loading initial systemd unit status for matching units")
 		refreshAll()
 	}
 
@@ -70,6 +77,7 @@ func runServe(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	defer func() { _ = w.Close() }()
+	log.Info("connected to system D-Bus; subscribing to systemd unit status changes")
 
 	go func() {
 		if err := w.Run(ctx, func(ev systemd.UnitEvent) {
@@ -91,6 +99,21 @@ func runServe(cmd *cobra.Command, _ []string) error {
 	pub.Disconnect()
 	log.Info("shutdown complete")
 	return nil
+}
+
+// serveBrokerEndpoint returns a zap field with host:port only (no credentials from URL).
+func serveBrokerEndpoint(cfg *config.Config) zap.Field {
+	raw := strings.TrimSpace(cfg.MQTT.Broker.URL)
+	u, err := url.Parse(raw)
+	if err != nil || u.Hostname() == "" {
+		return zap.String("broker", "configured")
+	}
+	host := u.Hostname()
+	port := u.Port()
+	if port == "" {
+		port = strconv.Itoa(cfg.MQTT.Broker.Port)
+	}
+	return zap.String("broker", net.JoinHostPort(host, port))
 }
 
 func publishUnit(log *zap.Logger, pub *mqttpub.Publisher, cfg *config.Config, ev systemd.UnitEvent) {
