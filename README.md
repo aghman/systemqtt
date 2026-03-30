@@ -11,6 +11,7 @@ make test
 
 ## Configuration
 
+- Detailed guide: [`docs/configuration.md`](docs/configuration.md)
 - **File**: YAML or JSON path via `--config` or `SYSTEMQTT_CONFIG_FILE`.
 - **Environment**: `SYSTEMQTT_*` with nested keys as underscores (for example `SYSTEMQTT_MQTT_BROKER_URL`).
 - **Flags**: same keys as the [design sketch](design/sketch.md) (for example `--mqtt.broker.url`).
