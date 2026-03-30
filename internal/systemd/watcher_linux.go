@@ -55,25 +55,49 @@ func (w *Watcher) listUnits() ([]UnitEvent, error) {
 	if call.Err != nil {
 		return nil, call.Err
 	}
-	raw, ok := call.Body[0].([]interface{})
-	if !ok {
-		return nil, fmt.Errorf("ListUnits: unexpected body")
+	if len(call.Body) < 1 {
+		return nil, fmt.Errorf("ListUnits: empty reply body")
+	}
+	raw, err := listUnitsRows(call.Body[0])
+	if err != nil {
+		return nil, err
 	}
 	var out []UnitEvent
 	for _, row := range raw {
-		tuple, ok := row.([]interface{})
-		if !ok || len(tuple) < 5 {
+		if len(row) < 5 {
 			continue
 		}
-		name, _ := tuple[0].(string)
-		active, _ := tuple[3].(string)
-		sub, _ := tuple[4].(string)
+		name, _ := row[0].(string)
+		active, _ := row[3].(string)
+		sub, _ := row[4].(string)
 		if !MatchUnit(name, w.pats) {
 			continue
 		}
 		out = append(out, UnitEvent{Unit: name, ActiveState: active, SubState: sub})
 	}
 	return out, nil
+}
+
+// listUnitsRows normalizes godbus decoding of a(ssssssso): the reply is a
+// [][]interface{} (one row per unit), not []interface{}.
+func listUnitsRows(first interface{}) ([][]interface{}, error) {
+	switch v := first.(type) {
+	case [][]interface{}:
+		return v, nil
+	case []interface{}:
+		// Defensive: some peers or older decoders may use a slice of interface{}.
+		rows := make([][]interface{}, 0, len(v))
+		for _, row := range v {
+			tup, ok := row.([]interface{})
+			if !ok {
+				return nil, fmt.Errorf("ListUnits: unexpected row type %T", row)
+			}
+			rows = append(rows, tup)
+		}
+		return rows, nil
+	default:
+		return nil, fmt.Errorf("ListUnits: unexpected body type %T", first)
+	}
 }
 
 // Run blocks until ctx is cancelled, emitting unit events on changes.
